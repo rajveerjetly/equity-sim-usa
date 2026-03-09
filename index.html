@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Pro Paper Trader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
+
+    <nav class="bg-gray-800 border-b border-gray-700 p-4 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-wider">US PRO <span class="text-blue-400">TRADER</span></h1>
+            </div>
+            
+            <div class="flex gap-6 text-sm md:text-base bg-gray-900 px-4 py-2 rounded-lg border border-gray-700">
+                <div>
+                    <span class="text-gray-400 block text-xs uppercase">Cash Available</span>
+                    <span id="cash-display" class="font-mono font-bold text-emerald-400">$100,000.00</span>
+                </div>
+                <div class="w-px bg-gray-700"></div>
+                <div>
+                    <span class="text-gray-400 block text-xs uppercase">Portfolio Value</span>
+                    <span id="portfolio-value" class="font-mono font-bold text-white">$0.00</span>
+                </div>
+                <div class="w-px bg-gray-700"></div>
+                <div>
+                    <span class="text-gray-400 block text-xs uppercase">Total P&L</span>
+                    <span id="total-pnl" class="font-mono font-bold text-gray-400">0.00%</span>
+                </div>
+            </div>
+
+            <button onclick="app.resetPortfolio()" class="text-xs text-red-400 hover:text-red-300 underline">Reset Account</button>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto w-full p-4 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="lg:col-span-1 space-y-6">
+            
+            <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700 relative">
+                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    Search Market
+                </h2>
+                <div class="relative">
+                    <input type="text" id="symbol-input" placeholder="Type symbol or company (e.g. AAPL)..." 
+                        class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors uppercase"
+                        autocomplete="off">
+                    
+                    <div id="search-loading" class="hidden absolute right-3 top-3.5">
+                        <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </div>
+
+                    <div id="search-results" class="absolute left-0 right-0 top-full mt-2 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl z-50 hidden max-h-60 overflow-y-auto">
+                        </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 id="selected-symbol" class="text-2xl font-bold text-white">---</h2>
+                        <p id="selected-name" class="text-sm text-gray-400 text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px]">Search a stock</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="current-price" class="text-2xl font-mono font-bold text-white">$0.00</div>
+                        <div id="price-change" class="text-sm font-mono text-gray-400">0.00 (0.00%)</div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1 uppercase">Quantity</label>
+                        <input type="number" id="trade-qty" value="1" min="1" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white font-mono focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="p-3 bg-gray-900 rounded-lg flex justify-between items-center text-sm border border-gray-700">
+                        <span class="text-gray-400">Estimated Total</span>
+                        <span id="trade-total" class="font-bold text-white">$0.00</span>
+                    </div>
+
+                    <div id="trade-error" class="text-red-400 text-xs hidden text-center"></div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button onclick="app.executeTrade('BUY')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center gap-2">
+                            BUY
+                        </button>
+                        <button onclick="app.executeTrade('SELL')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center gap-2">
+                            SELL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            
+            <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden flex flex-col h-full max-h-[500px]">
+                <div class="p-4 border-b border-gray-700 bg-gray-800/50 flex justify-between items-center">
+                    <h2 class="font-semibold text-lg">Active Positions</h2>
+                    <span class="text-xs text-blue-400 animate-pulse" id="refresh-indicator">Live Updates On</span>
+                </div>
+                <div class="overflow-auto flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-900 text-gray-400 text-xs uppercase sticky top-0">
+                            <tr>
+                                <th class="p-4 font-semibold">Symbol</th>
+                                <th class="p-4 font-semibold text-right">Qty</th>
+                                <th class="p-4 font-semibold text-right">Avg Price</th>
+                                <th class="p-4 font-semibold text-right">Last Price</th>
+                                <th class="p-4 font-semibold text-right">Market Value</th>
+                                <th class="p-4 font-semibold text-right">Unrealized P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="portfolio-body" class="divide-y divide-gray-700 text-sm">
+                            <tr class="text-gray-500 text-center">
+                                <td colspan="6" class="p-8">No active positions. Start trading!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700 bg-gray-800/50">
+                    <h2 class="font-semibold text-lg">Recent Transactions</h2>
+                </div>
+                <div class="max-h-64 overflow-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-900 text-gray-400 text-xs uppercase sticky top-0">
+                            <tr>
+                                <th class="p-3">Time</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Symbol</th>
+                                <th class="p-3 text-right">Price</th>
+                                <th class="p-3 text-right">Qty</th>
+                                <th class="p-3 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body" class="divide-y divide-gray-700">
+                           </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * US PRO TRADER LOGIC
+         * Uses AllOrigins proxy to bypass CORS for Yahoo Finance.
+         */
+        const app = {
+            // Configuration
+            startCash: 100000,
+            proxy: 'https://api.allorigins.win/raw?url=',
+            // Data State
+            data: {
+                cash: 100000,
+                portfolio: {}, // Object: { "AAPL": { qty: 10, avgPrice: 150 } }
+                history: [],
+                lastPrices: {} // Cache for current prices
+            },
+            currentSelection: null, // { symbol, price, change, changeP }
+            searchTimeout: null,
+
+            // --- Initialization ---
+            init() {
+                this.loadData();
+                this.renderHeader();
+                this.renderPortfolio();
+                this.renderHistory();
+                this.setupEventListeners();
+                
+                // Start the live price loop (every 10s)
+                setInterval(() => this.updatePortfolioPrices(), 10000);
+            },
+
+            // --- Data Persistence ---
+            saveData() {
+                localStorage.setItem('usProTrader_data', JSON.stringify(this.data));
+                this.renderHeader();
+            },
+
+            loadData() {
+                const stored = localStorage.getItem('usProTrader_data');
+                if (stored) {
+                    this.data = JSON.parse(stored);
+                } else {
+                    this.data.cash = this.startCash;
+                }
+            },
+
+            resetPortfolio() {
+                if(confirm("Are you sure you want to reset your portfolio? History will be lost.")) {
+                    this.data = { cash: this.startCash, portfolio: {}, history: [], lastPrices: {} };
+                    this.saveData();
+                    this.renderPortfolio();
+                    this.renderHistory();
+                    location.reload();
+                }
+            },
+
+            // --- API Handling ---
+            
+            // 1. Search (Autocomplete)
+            async fetchSearch(query) {
+                if (!query) return [];
+                const encodedUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=6&newsCount=0`);
+                try {
+                    const res = await fetch(`${this.proxy}${encodedUrl}`);
+                    const json = await res.json();
+                    // Filter for US stocks primarily to keep it clean
+                    return json.quotes.filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'ETF');
+                } catch (e) {
+                    console.error("Search Error", e);
+                    return [];
+                }
+            },
+
+            // 2. Fetch Quote (Price)
+            async fetchQuote(symbol) {
+                // Using V8 chart API as it's often more reliable via public proxies than V6/V7 quoteSummary
+                const encodedUrl = encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`);
+                try {
+                    // Add timestamp to bust caching on the proxy side
+                    const res = await fetch(`${this.proxy}${encodedUrl}&t=${Date.now()}`);
+                    const json = await res.json();
+                    const meta = json.chart.result[0].meta;
+                    return {
+                        symbol: meta.symbol,
+                        price: meta.regularMarketPrice,
+                        prevClose: meta.chartPreviousClose
+                    };
+                } catch (e) {
+                    console.error(`Quote Error for ${symbol}`, e);
+                    return null;
+                }
+            },
+
+            // --- Core Logic ---
+
+            async handleSearchInput(e) {
+                const query = e.target.value;
+                const resultsContainer = document.getElementById('search-results');
+                const loader = document.getElementById('search-loading');
+
+                clearTimeout(this.searchTimeout);
+
+                if (query.length < 2) {
+                    resultsContainer.classList.add('hidden');
+                    return;
+                }
+
+                loader.classList.remove('hidden');
+
+                this.searchTimeout = setTimeout(async () => {
+                    const results = await this.fetchSearch(query);
+                    loader.classList.add('hidden');
+                    
+                    if (results.length > 0) {
+                        resultsContainer.innerHTML = results.map(r => `
+                            <div class="px-4 py-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-0 transition-colors"
+                                 onclick="app.selectStock('${r.symbol}', '${r.shortname || r.longname || r.symbol}')">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-white">${r.symbol}</span>
+                                    <span class="text-xs text-gray-400 bg-gray-900 px-2 py-1 rounded">${r.exchange}</span>
+                                </div>
+                                <div class="text-sm text-gray-400 truncate">${r.shortname || r.longname || ''}</div>
+                            </div>
+                        `).join('');
+                        resultsContainer.classList.remove('hidden');
+                    } else {
+                        resultsContainer.classList.add('hidden');
+                    }
+                }, 400); // 400ms debounce
+            },
+
+            async selectStock(symbol, name) {
+                document.getElementById('search-results').classList.add('hidden');
+                document.getElementById('symbol-input').value = symbol;
+                
+                // Loading state in trade box
+                document.getElementById('selected-symbol').innerText = symbol;
+                document.getElementById('selected-name').innerText = name;
+                document.getElementById('current-price').innerText = "Loading...";
+                
+                const quote = await this.fetchQuote(symbol);
+                
+                if (quote) {
+                    this.currentSelection = quote;
+                    this.currentSelection.name = name;
+                    this.updateTradeUI();
+                } else {
+                    document.getElementById('current-price').innerText = "Err";
+                }
+            },
+
+            updateTradeUI() {
+                if (!this.currentSelection) return;
+                
+                const price = this.currentSelection.price;
+                const prev = this.currentSelection.prevClose;
+                const change = price - prev;
+                const changeP = (change / prev) * 100;
+                const qty = parseInt(document.getElementById('trade-qty').value) || 0;
+                
+                // Update Price Display
+                const priceEl = document.getElementById('current-price');
+                const changeEl = document.getElementById('price-change');
+                
+                priceEl.innerText = this.formatMoney(price);
+                priceEl.className = `text-2xl font-mono font-bold ${change >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                
+                changeEl.innerText = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changeP.toFixed(2)}%)`;
+                changeEl.className = `text-sm font-mono ${change >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                
+                // Update Total Estimated
+                document.getElementById('trade-total').innerText = this.formatMoney(price * qty);
+            },
+
+            executeTrade(type) {
+                const errorEl = document.getElementById('trade-error');
+                errorEl.classList.add('hidden');
+                
+                if (!this.currentSelection) {
+                    this.showError('Search for a stock first.');
+                    return;
+                }
+
+                const qty = parseInt(document.getElementById('trade-qty').value);
+                if (qty <= 0) {
+                    this.showError('Invalid quantity.');
+                    return;
+                }
+
+                const price = this.currentSelection.price;
+                const totalCost = price * qty;
+                const symbol = this.currentSelection.symbol;
+
+                // Validation
+                if (type === 'BUY') {
+                    if (this.data.cash < totalCost) {
+                        this.showError('Insufficient funds.');
+                        return;
+                    }
+                    this.data.cash -= totalCost;
+                    
+                    // Update Portfolio Logic (Average Cost)
+                    if (!this.data.portfolio[symbol]) {
+                        this.data.portfolio[symbol] = { qty: 0, avgPrice: 0 };
+                    }
+                    
+                    const pos = this.data.portfolio[symbol];
+                    const currentTotalVal = pos.qty * pos.avgPrice;
+                    const newTotalVal = currentTotalVal + totalCost;
+                    const newQty = pos.qty + qty;
+                    
+                    pos.avgPrice = newTotalVal / newQty;
+                    pos.qty = newQty;
+
+                } else if (type === 'SELL') {
+                    if (!this.data.portfolio[symbol] || this.data.portfolio[symbol].qty < qty) {
+                        this.showError('Insufficient shares.');
+                        return;
+                    }
+                    
+                    this.data.cash += totalCost;
+                    this.data.portfolio[symbol].qty -= qty;
+                    
+                    // Cleanup if 0
+                    if (this.data.portfolio[symbol].qty <= 0) {
+                        delete this.data.portfolio[symbol];
+                    }
+                }
+
+                // Record History
+                this.data.history.unshift({
+                    time: new Date().toLocaleString(),
+                    type,
+                    symbol,
+                    price,
+                    qty,
+                    total: totalCost
+                });
+
+                // Save & Render
+                this.saveData();
+                this.renderPortfolio();
+                this.renderHistory();
+                
+                // Visual confirmation
+                const btn = event.currentTarget;
+                const originalText = btn.innerText;
+                btn.innerText = "DONE!";
+                setTimeout(() => btn.innerText = originalText, 1000);
+            },
+
+            showError(msg) {
+                const el = document.getElementById('trade-error');
+                el.innerText = msg;
+                el.classList.remove('hidden');
+            },
+
+            // --- Dashboard Updates ---
+
+            async updatePortfolioPrices() {
+                const symbols = Object.keys(this.data.portfolio);
+                if (symbols.length === 0) return;
+
+                // We fetch one by one to avoid complex batch parsing with the proxy, 
+                // but concurrently to be fast.
+                const promises = symbols.map(s => this.fetchQuote(s));
+                const results = await Promise.all(promises);
+
+                results.forEach(quote => {
+                    if (quote) {
+                        this.data.lastPrices[quote.symbol] = quote.price;
+                    }
+                });
+
+                this.renderPortfolio();
+            },
+
+            renderPortfolio() {
+                const tbody = document.getElementById('portfolio-body');
+                const symbols = Object.keys(this.data.portfolio);
+                let totalInvested = 0;
+                let currentPortfolioValue = 0;
+
+                if (symbols.length === 0) {
+                    tbody.innerHTML = `<tr class="text-gray-500 text-center"><td colspan="6" class="p-8">No active positions.</td></tr>`;
+                    this.updateHeaderStats(0, 0);
+                    return;
+                }
+
+                let html = '';
+
+                symbols.forEach(sym => {
+                    const pos = this.data.portfolio[sym];
+                    const currentPrice = this.data.lastPrices[sym] || pos.avgPrice; // Fallback
+                    const marketValue = pos.qty * currentPrice;
+                    const investedVal = pos.qty * pos.avgPrice;
+                    const pl = marketValue - investedVal;
+                    const plPercent = (pl / investedVal) * 100;
+
+                    totalInvested += investedVal;
+                    currentPortfolioValue += marketValue;
+
+                    html += `
+                        <tr class="hover:bg-gray-800 transition-colors border-b border-gray-800 fade-in">
+                            <td class="p-4 font-bold text-white">${sym}</td>
+                            <td class="p-4 text-right text-gray-300 font-mono">${pos.qty}</td>
+                            <td class="p-4 text-right text-gray-400 font-mono">${this.formatMoney(pos.avgPrice)}</td>
+                            <td class="p-4 text-right text-white font-mono font-bold">${this.formatMoney(currentPrice)}</td>
+                            <td class="p-4 text-right text-white font-mono">${this.formatMoney(marketValue)}</td>
+                            <td class="p-4 text-right font-mono font-bold ${pl >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                                ${pl >= 0 ? '+' : ''}${this.formatMoney(pl)}<br>
+                                <span class="text-xs font-normal opacity-80">${plPercent.toFixed(2)}%</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+                this.updateHeaderStats(currentPortfolioValue, totalInvested);
+            },
+
+            renderHistory() {
+                const tbody = document.getElementById('history-body');
+                tbody.innerHTML = this.data.history.map(h => `
+                    <tr class="hover:bg-gray-700/50">
+                        <td class="p-3 text-gray-500 text-xs">${h.time.split(',')[1]}</td>
+                        <td class="p-3 font-bold ${h.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}">${h.type}</td>
+                        <td class="p-3 font-bold text-white">${h.symbol}</td>
+                        <td class="p-3 text-right font-mono text-gray-300">${this.formatMoney(h.price)}</td>
+                        <td class="p-3 text-right font-mono text-gray-300">${h.qty}</td>
+                        <td class="p-3 text-right font-mono text-gray-300">${this.formatMoney(h.total)}</td>
+                    </tr>
+                `).join('');
+            },
+
+            renderHeader() {
+                document.getElementById('cash-display').innerText = this.formatMoney(this.data.cash);
+            },
+
+            updateHeaderStats(portfolioVal, investedVal) {
+                document.getElementById('portfolio-value').innerText = this.formatMoney(portfolioVal);
+                
+                const totalAssets = this.data.cash + portfolioVal;
+                const start = this.startCash;
+                const totalPL = totalAssets - start;
+                const totalPLPercent = (totalPL / start) * 100;
+
+                const plEl = document.getElementById('total-pnl');
+                plEl.innerHTML = `${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toFixed(2)}%`;
+                plEl.className = `font-mono font-bold ${totalPLPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+            },
+
+            // --- Utilities ---
+            formatMoney(num) {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+            },
+
+            setupEventListeners() {
+                document.getElementById('symbol-input').addEventListener('input', (e) => this.handleSearchInput(e));
+                
+                // Recalculate totals when quantity changes
+                document.getElementById('trade-qty').addEventListener('input', () => this.updateTradeUI());
+                
+                // Close search if clicking outside
+                document.addEventListener('click', (e) => {
+                    const searchBox = document.querySelector('.relative'); // rough check
+                    if (!e.target.closest('#symbol-input') && !e.target.closest('#search-results')) {
+                        document.getElementById('search-results').classList.add('hidden');
+                    }
+                });
+            }
+        };
+
+        // Boot
+        app.init();
+    </script>
+</body>
+</html>
