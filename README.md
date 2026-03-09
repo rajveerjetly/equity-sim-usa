@@ -1,7 +1,7 @@
 # Equity-Sim USA | Global Market Strategy Engine
 
 # Live Demo: 
-
+https://rajveerjetly.github.io/equity-sim-usa/
 # Project Overview
 1. Equity-Sim USA is a high-performance market simulator focused on the US Equity markets (NYSE/NASDAQ). Following the success of the India-market prototype, this version was engineered to handle the unique dynamics of the US market—specifically its high liquidity and global volatility.
 
